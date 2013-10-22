@@ -25,12 +25,23 @@ describe('Node', function() {
   var tx, homer, marge, lisa, bart, maggie;
   beforeEach(function(done) {
     tx = database.beginTx();
-    homer = database.createNode();
-    marge = database.createNode();
-    lisa = database.createNode();
-    bart = database.createNode();
-    maggie = database.createNode();
-    done();
+    try {
+      database.createLabel('Person', 'name');
+      tx.success();
+    }
+    catch(e) {}
+    finally {
+      tx.finish();
+    }
+    tx = database.beginTx();
+    database.awaitIndexesOnline(10, function() {
+      homer = database.createNode('Person');
+      marge = database.createNode('Person');
+      lisa = database.createNode('Person');
+      bart = database.createNode('Person');
+      maggie = database.createNode('Person');
+      done();
+    });
   });
   afterEach(function(done) {
     async.each([homer, marge, lisa, bart, maggie], function(node, done) {
@@ -49,6 +60,7 @@ describe('Node', function() {
         tx.finish();
       }
       catch(e) {}
+
       done();
     });
   });
@@ -71,6 +83,25 @@ describe('Node', function() {
     homer.setProperty('name', 'Homer Simpson');
     expect(homer.hasProperty('name')).to.be(true);
     expect(homer.hasProperty('xyz4')).to.be(false);
+  });
+  it('addLabel', function() {
+    expect(function() {homer.addLabel('Drunk');}).to.not.throwError();
+    expect(function() {homer.addLabel('Drunk', 'Person');}).to.not.throwError();
+  });
+  it('hasLabel', function() {
+    homer.addLabel('Drunk');
+    expect(homer.hasLabel('Drunk')).to.be(true);
+  });
+  it('getLabels', function() {
+    homer.addLabel('Drunk', 'Person');
+    expect(homer.getLabels()).to.eql(['Person', 'Drunk']);
+  });
+  it('removeLabel', function() {
+    homer.addLabel('Drunk', 'Person');
+    expect(function() {homer.removeLabel('Drunk');}).to.not.throwError();
+    expect(homer.hasLabel('Drunk')).to.be(false);
+    expect(homer.hasLabel('Person')).to.be(true);
+    expect(homer.getLabels()).to.eql(['Person']);
   });
   it('delete', function() {
     homer.delete();
@@ -118,9 +149,5 @@ describe('Node', function() {
     expect(marge.getRelationshipNodes('MARRIED_WITH').length).to.be(1);
     expect(homer.getRelationshipNodes('MARRIED_WITH', 'CHILD_OF').length).to.be(2);
     expect(homer.getRelationshipNodes(neo4j.DIRECTION.OUTGOING, 'CHILD_OF', 'MARRIED_WITH').length).to.be(1);
-  });
-  it('index', function() {
-    homer.setProperty('name', 'Homer Simpson');
-    homer.index('SIMPSON_FAMILY', 'name', 'Homer Simpson');
   });
 });

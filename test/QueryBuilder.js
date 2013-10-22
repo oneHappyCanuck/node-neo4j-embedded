@@ -78,6 +78,7 @@ describe('QueryBuilder', function() {
     });
   });
   it('should execute a simple query', function(done) {
+    var tx = database.beginTx();
     var query = database.queryBuilder();
     expect(query).to.be.an('object');
     query.startAt({n: 'node:SIMPSONS("*: *")'});
@@ -87,6 +88,8 @@ describe('QueryBuilder', function() {
       expect(result).to.be.an('array');
       expect(total).to.be.a('number');
       expect(total).to.be(5);
+      tx.success();
+      tx.finish();
       done();
     });
   });
@@ -94,7 +97,7 @@ describe('QueryBuilder', function() {
     var query = database.queryBuilder();
     query.startAt({lisa: 'node:SIMPSONS({search})'});
     query.match('(lisa)-[:CHILD_OF]->(parent)');
-    query.returns('parent');
+    query.return('parent');
     query.execute({search: "name: Lisa"}, function(err, results, total) {
       expect(err).to.be(null);
       expect(total).to.be(2);
@@ -105,5 +108,12 @@ describe('QueryBuilder', function() {
   it('should escape special characters for lucene', function() {
     var query = database.queryBuilder();
     expect(query.escape('AND OR')).to.be('\\AND\\ \\OR');
+  });
+  it('should delete marge', function(done) {
+    var query = database.queryBuilder();
+    query.startAt({marge: 'node:SIMPSONS({search})'});
+    query.match('marge-[r]-x')
+    query.delete('r, marge');
+    query.execute({search: "name: Marge"}, done);
   });
 });
